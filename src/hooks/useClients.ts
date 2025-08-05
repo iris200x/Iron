@@ -10,6 +10,7 @@ export interface ClientProfile {
     lastName: string;
     username: string;
     profileIcon?: string;
+    goals?: string; 
 }
 
 export function useClients() {
@@ -31,12 +32,10 @@ export function useClients() {
                 const clientStatus = clientDoc.data().status || 'accepted';
                 const clientUid = clientDoc.id;
 
-        
                 const userDocRef = doc(db, 'users', clientUid);
                 const userDoc = await getDoc(userDocRef);
 
                 if (userDoc.exists()) {
-            
                     return {
                         uid: userDoc.id,
                         status: clientStatus,

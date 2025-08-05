@@ -2,20 +2,17 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-
+import type { Goal } from './useGoals';
 
 export interface PendingAssignment {
     id: string;
-    type: 'client-offer' | 'reminder' | 'exercise';
+    type: 'client-offer' | 'reminder' | 'goal';
     assignedBy: {
         uid: string;
         name: string;
         profileIcon?: string;
     };
-
-    payload?: {
-        text: string;
-    };
+    payload?: { text: string } | Goal;
 }
 
 export function usePendingAssignments() {
@@ -28,7 +25,6 @@ export function usePendingAssignments() {
             setLoading(false);
             return;
         };
-
 
         const q = query(collection(db, 'users', currentUser.uid, 'pendingAssignments'));
 

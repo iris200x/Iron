@@ -13,10 +13,12 @@ const icons = {
 
 
 const variantStyles = {
-    default: "bg-yellow-500 text-gray-800 shadow-md hover:bg-yellow-600", 
+    default: "bg-yellow-500 text-gray-800 shadow-md hover:bg-yellow-600",
+    destructive: "bg-red-600 text-white shadow-sm hover:bg-red-700",
     outline: "border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-100 focus:ring-gray-300 focus:ring-offset-2",
     form: "w-full bg-yellow-500 text-gray-800 shadow-sm hover:bg-yellow-600 focus:ring-offset-2",
     ghost: "hover:bg-gray-100",
+    secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300",
 };
 
 const sizeStyles = {

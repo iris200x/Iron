@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGoals, type Goal, type SubTask } from '@/hooks/useGoals';
-import { addDoc, collection, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { useGoals, type Goal } from '@/hooks/useGoals';
+import { addDoc, collection, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 import { GoalList } from '@/components/features/goals/GoalList';
@@ -18,14 +18,13 @@ export default function GoalsPage() {
     const [view, setView] = useState<ViewState>('list');
     const [goalType, setGoalType] = useState<'workout' | 'diet'>('workout');
 
-    const handleSaveGoal = async (goalData: Omit<Goal, 'id' | 'progress'>) => {
+    const handleSaveGoal = async (goalData: Omit<Goal, 'id'>) => {
         if (!currentUser) return;
         await addDoc(collection(db, 'users', currentUser.uid, 'goals'), {
             ...goalData,
-            createdAt: serverTimestamp(),
         });
         setView('list');
-    };
+};
 
     const handleDeleteGoal = async (goalId: string) => {
         if (!currentUser) return;
@@ -37,32 +36,6 @@ export default function GoalsPage() {
         }
     };
 
-
-    const handleToggleSubTask = async (goalId: string, subTaskIndex: number) => {
-        if (!currentUser) return;
-
-        const goalToUpdate = goals.find(g => g.id === goalId);
-        if (!goalToUpdate) return;
-
-
-        const newSubTasks = goalToUpdate.subTasks.map((task, index) =>
-            index === subTaskIndex ? { ...task, completed: !task.completed } : task
-        );
-
-
-        const completedCount = newSubTasks.filter(task => task.completed).length;
-        const newProgress = newSubTasks.length > 0 ? Math.round((completedCount / newSubTasks.length) * 100) : 0;
-
-        const goalDocRef = doc(db, 'users', currentUser.uid, 'goals', goalId);
-        try {
-            await updateDoc(goalDocRef, {
-                subTasks: newSubTasks,
-                progress: newProgress,
-            });
-        } catch (error) {
-            console.error("Error updating sub-task: ", error);
-        }
-    };
 
     const handleSelectGoalType = (type: 'workout' | 'diet') => {
         setGoalType(type);
@@ -86,7 +59,7 @@ export default function GoalsPage() {
                 return <AddGoalForm goalType={goalType} onSave={handleSaveGoal} onBack={() => setView('add_options')} />;
             case 'list':
             default:
-                return <GoalList goals={goals} onDeleteGoal={handleDeleteGoal} onToggleSubTask={handleToggleSubTask} onAddNewGoal={() => setView('add_options')} />;
+                return <GoalList goals={goals} onDeleteGoal={handleDeleteGoal} onAddNewGoal={() => setView('add_options')} />;
         }
     };
 

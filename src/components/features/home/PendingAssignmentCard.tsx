@@ -22,12 +22,16 @@ export function PendingAssignmentCard({ assignment }: { assignment: PendingAssig
             if (assignment.type === 'client-offer') {
                 const instructorClientRef = doc(db, 'users', assignment.assignedBy.uid, 'clients', currentUser.uid);
                 await updateDoc(instructorClientRef, { status: 'accepted' });
-            } else if ((assignment.type === 'reminder' || assignment.type === 'exercise') && assignment.payload) {
+            } else if ((assignment.type === 'reminder' || assignment.type === 'goal') && assignment.payload) {
                 const destinationCollection = assignment.type === 'reminder' ? 'reminders' : 'goals';
                 const newDocRef = collection(db, 'users', currentUser.uid, destinationCollection);
+
+                const docData = 'title' in assignment.payload
+                    ? { ...assignment.payload, progress: 0 }
+                    : { text: assignment.payload.text, completed: false };
+
                 await addDoc(newDocRef, {
-                    text: assignment.payload.text,
-                    completed: false,
+                    ...docData,
                     createdBy: assignment.assignedBy,
                     createdAt: serverTimestamp()
                 });
@@ -50,28 +54,28 @@ export function PendingAssignmentCard({ assignment }: { assignment: PendingAssig
         title: `${assignment.assignedBy.name}`,
         description: assignment.type === 'client-offer'
             ? "has offered to be your instructor."
-            : `sent you a new ${assignment.type}:`
+            : `sent you a new ${assignment.type}:`,
+        payloadText: assignment.payload ? ('title' in assignment.payload ? assignment.payload.title : assignment.payload.text) : null
     };
 
     return (
         <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200 transition-opacity duration-500">
             <div className="flex items-center gap-4">
-                <Image src={assignment.assignedBy.profileIcon || '/images/no_image.jpg'} alt="Instructor" width={40} height={40} className="rounded-full flex-shrink-0" />
+                <Image src={assignment.assignedBy.profileIcon || '/images/no_image.png'} alt="Instructor" width={40} height={40} className="rounded-full flex-shrink-0" />
 
                 <div className="flex-grow">
                     <p className="text-sm text-gray-800">
                         <span className="font-semibold">{offerContent.title}</span> {offerContent.description}
                     </p>
-                    {assignment.payload?.text && (
-                        <p className="text-md font-medium text-yellow-700 mt-1 italic">"{assignment.payload.text}"</p>
+                    {offerContent.payloadText && (
+                        <p className="text-md font-medium text-yellow-700 mt-1 italic">"{offerContent.payloadText}"</p>
                     )}
                 </div>
 
                 {status === 'pending' && (
                     <div className="flex gap-2 flex-shrink-0">
                         <Button onClick={() => handleResponse(true)} size="sm" disabled={isProcessing}>Accept</Button>
-
-                        <Button onClick={() => handleResponse(false)} variant="outline" size="sm" disabled={isProcessing}>Decline</Button>
+                        <Button onClick={() => handleResponse(false)} variant="destructive" size="sm" disabled={isProcessing}>Decline</Button>
                     </div>
                 )}
             </div>

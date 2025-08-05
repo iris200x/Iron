@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import type { SubTask } from '@/hooks/useGoals';
+import { serverTimestamp } from 'firebase/firestore';
 
 interface AddGoalFormProps {
     goalType: 'workout' | 'diet';
@@ -12,63 +14,68 @@ interface AddGoalFormProps {
     onBack: () => void;
 }
 
-const workoutOptions = [
-    'Push-ups', 'Planks', 'Squats', 'Bench Press', 'Rows', 'Dumbbell Curls', 'Lunges', 'Deadlifts', 'Overhead Press', 'Pull-ups', 'Crunches', 'Leg Press', 'Calf Raises'
-];
+const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const workoutOptions = ['Push-ups', 'Planks', 'Squats', 'Bench Press', 'Rows', 'Dumbbell Curls', 'Lunges', 'Deadlifts', 'Overhead Press', 'Pull-ups', 'Crunches', 'Leg Press', 'Calf Raises'];
 const dietOptions = ['Drink Water', 'Eat Fruits', 'Eat Vegetables', 'Avoid Sugar', 'High-Protein Meal', 'Low-Carb Meal'];
 const unitOptions = {
     workout: ['reps', 'sets', 'seconds', 'minutes'],
     diet: ['servings', 'glasses', 'grams', 'calories']
 };
+const durationOptions = Array.from({ length: 12 }, (_, i) => `${i + 1} week${i > 0 ? 's' : ''}`);
+const difficultyOptions = ['Beginner', 'Intermediate', 'Advanced'];
 
 export function AddGoalForm({ goalType, onSave, onBack }: AddGoalFormProps) {
     const [newGoalName, setNewGoalName] = useState('');
-    const [newGoalRepetitions, setNewGoalRepetitions] = useState('');
+    const [selectedDays, setSelectedDays] = useState<string[]>([]);
+    const [duration, setDuration] = useState(4);
+    const [difficulty, setDifficulty] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
+    const [notes, setNotes] = useState('');
+
     const [currentSubTasks, setCurrentSubTasks] = useState<SubTask[]>([]);
-
-
     const [subTaskName, setSubTaskName] = useState('');
     const [subTaskAmount, setSubTaskAmount] = useState(10);
     const [subTaskUnit, setSubTaskUnit] = useState(unitOptions[goalType][0]);
+    const [subTaskRest, setSubTaskRest] = useState(60);
+
+    const handleDayToggle = (day: string) => {
+        setSelectedDays(prev => 
+            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+        );
+    };
 
     const handleAddSubTaskToList = () => {
-        if (subTaskName.trim() !== '' && subTaskUnit.trim() !== '') {
-            const fullText = `${subTaskName}: ${subTaskAmount} ${subTaskUnit}`;
-            setCurrentSubTasks(prev => [...prev, { text: fullText, completed: false }]);
-       
-            setSubTaskName('');
-            setSubTaskAmount(10);
-        }
+        if (subTaskName.trim() === '') return;
+        const newSubTask: SubTask = {
+            name: subTaskName,
+            amount: subTaskAmount,
+            unit: subTaskUnit,
+            rest: goalType === 'workout' ? subTaskRest : undefined,
+            completed: false
+        };
+        setCurrentSubTasks(prev => [...prev, newSubTask]);
+        setSubTaskName('');
     };
 
     const handleRemoveSubTaskFromList = (indexToRemove: number) => {
         setCurrentSubTasks(prev => prev.filter((_, index) => index !== indexToRemove));
     };
-
-    const handleMoveSubTask = (index: number, direction: 'up' | 'down') => {
-        if ((direction === 'up' && index === 0) || (direction === 'down' && index === currentSubTasks.length - 1)) {
-            return;
-        }
-        const newTasks = [...currentSubTasks];
-        const taskToMove = newTasks[index];
-        const swapIndex = direction === 'up' ? index - 1 : index + 1;
-        newTasks[index] = newTasks[swapIndex];
-        newTasks[swapIndex] = taskToMove;
-        setCurrentSubTasks(newTasks);
-    };
-
+    
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (newGoalName.trim() === '' || currentSubTasks.length === 0 || newGoalRepetitions.trim() === '') {
-            alert("Please fill out all fields and add at least one sub-task.");
+        if (!newGoalName.trim() || selectedDays.length === 0 || currentSubTasks.length === 0) {
+            alert("Please provide a goal name, select at least one day, and add at least one sub-task.");
             return;
         }
- 
         onSave({
             title: newGoalName,
             type: goalType,
-            repetitions: newGoalRepetitions,
+            days: selectedDays,
+            duration: duration,
+            difficulty,
+            notes,
             subTasks: currentSubTasks,
+            startDate: serverTimestamp(),
+            weeklyProgress: {},
         });
     };
 
@@ -77,24 +84,25 @@ export function AddGoalForm({ goalType, onSave, onBack }: AddGoalFormProps) {
 
     return (
         <form onSubmit={handleFormSubmit} className="space-y-6">
-            <Button type="button" onClick={onBack} variant="ghost" icon="back">
-                Back
-            </Button>
-            <h3 className="text-xl font-semibold text-center">Create Your Custom {goalType} Goal</h3>
+            <Button type="button" onClick={onBack} variant="ghost" icon="back">Back</Button>
+            <h3 className="text-2xl font-bold text-center">Create Your Custom {goalType} Goal</h3>
 
-            <div>
-                <label htmlFor="goalName" className="block text-sm font-medium text-gray-700 mb-1">Goal Name</label>
-                <Input
-                    id="goalName"
-                    value={newGoalName}
-                    onChange={(e) => setNewGoalName(e.target.value)}
-                    placeholder={`e.g., Monday ${goalType === 'workout' ? 'Chest Day' : 'Hydration'}`}
-                    required
-                />
-            </div>
+            <fieldset className="space-y-4 rounded-lg border p-4">
+                <legend className="px-1 text-sm font-medium text-gray-700">Goal Details</legend>
+                <Input id="goalName" value={newGoalName} onChange={(e) => setNewGoalName(e.target.value)} placeholder="e.g., Monday Chest Day" required />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+                        {durationOptions.map((opt, i) => <option key={opt} value={i + 1}>{opt}</option>)}
+                    </Select>
+                    <Select value={difficulty} onChange={(e) => setDifficulty(e.target.value as any)}>
+                        {difficultyOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </Select>
+                </div>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add personal notes or tips for this goal... (optional)" rows={3} />
+            </fieldset>
 
-            <div className="p-4 border rounded-md bg-gray-50 space-y-3">
-                <label className="block text-sm font-medium text-gray-700">Build Your Sub-Task</label>
+            <fieldset className="space-y-3 rounded-lg border p-4">
+                <legend className="px-1 text-sm font-medium text-gray-700">Build Sub-Tasks</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Select value={subTaskName} onChange={(e) => setSubTaskName(e.target.value)}>
                         <option value="">Select item...</option>
@@ -107,20 +115,22 @@ export function AddGoalForm({ goalType, onSave, onBack }: AddGoalFormProps) {
                         </Select>
                     </div>
                 </div>
-                <Button type="button" onClick={handleAddSubTaskToList} variant="default" size="sm" className="w-full">
-                    Add to Goal
-                </Button>
-            </div>
+                {goalType === 'workout' && (
+                  <Input type="number" value={subTaskRest} onChange={(e) => setSubTaskRest(Number(e.target.value))} min="0" step="15" placeholder="Rest (seconds)" />
+                )}
+                <Button type="button" onClick={handleAddSubTaskToList} variant="default" size="sm" className="w-full">Add Sub-Task</Button>
+            </fieldset>
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Current Sub-Tasks</label>
                 <div className="space-y-2 p-3 border rounded-md min-h-[8rem] bg-gray-50">
                     {currentSubTasks.length > 0 ? currentSubTasks.map((task, index) => (
                         <div key={index} className="flex items-center justify-between bg-white p-2 rounded text-sm">
-                            <p className="text-gray-700">{task.text}</p>
+                            <p className="text-gray-700">
+                                {task.name}: {task.amount} {task.unit}
+                                {task.rest && <span className="text-xs text-gray-500 ml-2">({task.rest}s rest)</span>}
+                            </p>
                             <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => handleMoveSubTask(index, 'up')} disabled={index === 0} className="disabled:opacity-50 text-gray-500 hover:text-black">&#x25B2;</button>
-                                <button type="button" onClick={() => handleMoveSubTask(index, 'down')} disabled={index === currentSubTasks.length - 1} className="disabled:opacity-50 text-gray-500 hover:text-black">&#x25BC;</button>
                                 <button type="button" onClick={() => handleRemoveSubTaskFromList(index)} className="text-red-400 hover:text-red-600 font-bold">&#x2715;</button>
                             </div>
                         </div>
@@ -129,20 +139,17 @@ export function AddGoalForm({ goalType, onSave, onBack }: AddGoalFormProps) {
             </div>
 
             <div>
-                <label htmlFor="goalRepetitions" className="block text-sm font-medium text-gray-700 mb-1">How often should this goal repeat per week?</label>
-                <Select id="goalRepetitions" value={newGoalRepetitions} onChange={(e) => setNewGoalRepetitions(e.target.value)} required>
-                    <option value="" disabled>Select frequency...</option>
-                    {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                        <option key={num} value={`${num} time${num > 1 ? 's' : ''} a week`}>
-                            {`${num} time${num > 1 ? 's' : ''} a week`}
-                        </option>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Days to Repeat</label>
+                <div className="flex items-center justify-between gap-1 sm:gap-2">
+                    {daysOfWeek.map(day => (
+                        <button type="button" key={day} onClick={() => handleDayToggle(day)}
+                            className={`flex-1 rounded-full p-2 text-xs sm:text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 ${selectedDays.includes(day) ? 'bg-yellow-500 text-gray-800' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        >{day}</button>
                     ))}
-                </Select>
+                </div>
             </div>
 
-            <Button type="submit" variant="form" size="md">
-                Save Goal
-            </Button>
+            <Button type="submit" variant="form" size="lg">Save Goal</Button>
         </form>
     );
 }

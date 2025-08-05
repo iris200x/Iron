@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface SubTask {
-    text: string;
+    name: string;
+    amount: number;
+    unit: string;
+    rest?: number;
     completed: boolean;
 }
 
@@ -12,20 +15,29 @@ export interface Goal {
     id: string;
     title: string;
     type: 'workout' | 'diet';
-    repetitions: string;
+    days: string[];
+    duration: number;
+    difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+    notes?: string;
     subTasks: SubTask[];
-    progress: number;
+    startDate: Timestamp; 
+    weeklyProgress: { [weekAndDay: string]: boolean };
 }
 
-export function useGoals() {
+export function useGoals(userId?: string | null) {
     const { currentUser } = useAuth();
     const [goals, setGoals] = useState<Goal[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!currentUser) return;
+        const targetUid = userId || currentUser?.uid;
 
-        const goalsCollectionRef = collection(db, 'users', currentUser.uid, 'goals');
+        if (!targetUid) {
+            setLoading(false);
+            return;
+        };
+
+        const goalsCollectionRef = collection(db, 'users', targetUid, 'goals');
         const q = query(goalsCollectionRef);
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -38,7 +50,7 @@ export function useGoals() {
         });
 
         return () => unsubscribe();
-    }, [currentUser]);
+    }, [currentUser, userId]);
 
     return { goals, loading };
 }
